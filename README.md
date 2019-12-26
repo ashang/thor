@@ -3,13 +3,11 @@ Thor
 
 [![Gem Version](http://img.shields.io/gem/v/thor.svg)][gem]
 [![Build Status](http://img.shields.io/travis/erikhuda/thor.svg)][travis]
-[![Dependency Status](http://img.shields.io/gemnasium/erikhuda/thor.svg)][gemnasium]
 [![Code Climate](http://img.shields.io/codeclimate/github/erikhuda/thor.svg)][codeclimate]
 [![Coverage Status](http://img.shields.io/coveralls/erikhuda/thor.svg)][coveralls]
 
 [gem]: https://rubygems.org/gems/thor
 [travis]: http://travis-ci.org/erikhuda/thor
-[gemnasium]: https://gemnasium.com/erikhuda/thor
 [codeclimate]: https://codeclimate.com/github/erikhuda/thor
 [coveralls]: https://coveralls.io/r/erikhuda/thor
 
@@ -21,7 +19,13 @@ utilities.  It removes the pain of parsing command line options, writing
 build tool.  The syntax is Rake-like, so it should be familiar to most Rake
 users.
 
+Please note: Thor, by design, is a system tool created to allow seamless file and url
+access, which should not receive application user input. It relies on [open-uri][open-uri],
+which combined with application user input would provide a command injection attack
+vector.
+
 [rake]: https://github.com/ruby/rake
+[open-uri]: https://ruby-doc.org/stdlib-2.5.1/libdoc/open-uri/rdoc/index.html
 
 Installation
 ------------

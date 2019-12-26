@@ -1,12 +1,13 @@
-require "thor"
-require "thor/group"
-require "thor/core_ext/io_binary_read"
+require_relative "../thor"
+require_relative "group"
 
 require "yaml"
 require "digest/md5"
 require "pathname"
 
 class Thor::Runner < Thor #:nodoc: # rubocop:disable ClassLength
+  autoload :OpenURI, "open-uri"
+
   map "-T" => :list, "-i" => :install, "-u" => :update, "-v" => :version
 
   def self.banner(command, all = false, subcommand = false)
@@ -111,7 +112,7 @@ class Thor::Runner < Thor #:nodoc: # rubocop:disable ClassLength
 
   desc "version", "Show Thor version"
   def version
-    require "thor/version"
+    require_relative "version"
     say "Thor #{Thor::VERSION}"
   end
 

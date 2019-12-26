@@ -86,6 +86,21 @@ describe Thor::Actions do
         expect(runner.relative_to_original_destination_root("/test/file")).to eq("/test/file")
       end
 
+      it "doesn't remove the root path from the absolute path if it is not at the begining" do
+        runner.destination_root = "/app"
+        expect(runner.relative_to_original_destination_root("/something/app/project")).to eq("/something/app/project")
+      end
+
+      it "doesn't removes the root path from the absolute path only if it is only the partial name of the directory" do
+        runner.destination_root = "/app"
+        expect(runner.relative_to_original_destination_root("/application/project")).to eq("/application/project")
+      end
+
+      it "removes the root path from the absolute path only once" do
+        runner.destination_root = "/app"
+        expect(runner.relative_to_original_destination_root("/app/app/project")).to eq("app/project")
+      end
+
       it "does not fail with files containing regexp characters" do
         runner = MyCounter.new([1], {}, :destination_root => File.join(destination_root, "fo[o-b]ar"))
         expect(runner.relative_to_original_destination_root("bar")).to eq("bar")
@@ -283,6 +298,50 @@ describe Thor::Actions do
         runner.run("ls", :verbose => false)
       end
     end
+
+    describe "when not capturing" do
+      it "aborts when abort_on_failure is given and command fails" do
+        expect { action :run, "false", :abort_on_failure => true }.to raise_error(SystemExit)
+      end
+
+      it "succeeds when abort_on_failure is given and command succeeds" do
+        expect { action :run, "true", :abort_on_failure => true }.not_to raise_error
+      end
+
+      it "supports env option" do
+        expect { action :run, "echo $BAR", :env => { "BAR" => "foo" } }.to output("foo\n").to_stdout_from_any_process
+      end
+    end
+
+    describe "when capturing" do
+      it "aborts when abort_on_failure is given, capture is given and command fails" do
+        expect { action :run, "false", :abort_on_failure => true, :capture => true }.to raise_error(SystemExit)
+      end
+
+      it "succeeds when abort_on_failure is given and command succeeds" do
+        expect { action :run, "true", :abort_on_failure => true, :capture => true }.not_to raise_error
+      end
+
+      it "supports env option" do
+        silence(:stdout) do
+          expect(runner.run "echo $BAR", :env => { "BAR" => "foo" }, :capture => true).to eq("foo\n")
+        end
+      end
+    end
+
+    context "exit_on_failure? is true" do
+      before do
+        allow(MyCounter).to receive(:exit_on_failure?).and_return(true)
+      end
+
+      it "aborts when command fails even if abort_on_failure is not given" do
+        expect { action :run, "false" }.to raise_error(SystemExit)
+      end
+
+      it "does not abort when abort_on_failure is false even if the command fails" do
+        expect { action :run, "false", :abort_on_failure => false }.not_to raise_error
+      end
+    end
   end
 
   describe "#run_ruby_script" do
@@ -334,8 +393,8 @@ describe Thor::Actions do
     end
 
     it "captures the output when :capture is given" do
-      expect(runner).to receive(:`).with("thor foo bar")
-      action(:thor, "foo", "bar", :capture => true)
+      expect(runner).to receive(:run).with("list", hash_including(:capture => true))
+      action :thor, :list, :capture => true
     end
   end
 end

@@ -1,3 +1,30 @@
+# 1.0.1
+* Fix thor when `thor/base` and `thor/group` are required without `thor.rb`.
+* Handle relative source path in `create_link`.
+
+# 1.0.0
+* Drop support to Ruby 1.8 and 1.9.
+* Deprecate relying on default `exit_on_failure?`.
+  In preparation to make Thor commands exit when there is a failure we are deprecating
+  defining a command without defining what behavior is expected when there is a failure.
+
+  To fix the deprecation you need to define a class method called `exit_on_failure?` returning
+
+  `false` if you want the current behavior or `true` if you want the new behavior.
+* Deprecate defining an option with the default value using a different type as defined in the option.
+* Allow options to be repeatable. See #674.
+
+# 0.20.3
+* Support old versions of `did_you_mean`.
+
+# 0.20.2
+* Fix `did_you_mean` support.
+
+# 0.20.1
+* Support new versions of ERB.
+* Fix `check_unknown_options!` to not check the content that was not parsed, i.e. after a `--` or after the first unknown with `stop_on_unknown_option!`
+* Add `did_you_mean` support.
+
 ## 0.20.0
 * Add `check_default_type!` to check if the default value of an option matches the defined type.
   It removes the warning on usage and gives the command authors the possibility to check for programming errors.

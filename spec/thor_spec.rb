@@ -127,6 +127,10 @@ describe Thor do
       expect(my_script.start(%w(exec -- --verbose))).to eq [{}, %w(--verbose)]
     end
 
+    it "still passes everything after -- to command, complex" do
+      expect(my_script.start(%w[exec command --mode z again -- --verbose more])).to eq [{}, %w[command --mode z again -- --verbose more]]
+    end
+
     it "does not affect ordinary commands" do
       expect(my_script.start(%w(boring command --verbose))).to eq [{"verbose" => true}, %w(command)]
     end
@@ -157,6 +161,121 @@ describe Thor do
     it "doesn't break new" do
       expect(my_script.new).to be_a(Thor)
     end
+
+    context "along with check_unknown_options!" do
+      my_script2 = Class.new(Thor) do
+        class_option "verbose",   :type => :boolean
+        class_option "mode",      :type => :string
+        check_unknown_options!
+        stop_on_unknown_option! :exec
+
+        desc "exec", "Run a command"
+        def exec(*args)
+          [options, args]
+        end
+
+        def self.exit_on_failure?
+          false
+        end
+      end
+
+      it "passes remaining args to command when it encounters a non-option" do
+        expect(my_script2.start(%w[exec command --verbose])).to eq [{}, %w[command --verbose]]
+      end
+
+      it "does not accept if first non-option looks like an option, but only refuses that invalid option" do
+        expect(capture(:stderr) do
+          my_script2.start(%w[exec --foo command --bar])
+        end.strip).to eq("Unknown switches \"--foo\"")
+      end
+
+      it "still accepts options that are given before non-options" do
+        expect(my_script2.start(%w[exec --verbose command])).to eq [{"verbose" => true}, %w[command]]
+      end
+
+      it "still accepts when non-options are given after real options and argument" do
+        expect(my_script2.start(%w[exec --verbose command --foo])).to eq [{"verbose" => true}, %w[command --foo]]
+      end
+
+      it "does not accept when non-option looks like an option and is after real options" do
+        expect(capture(:stderr) do
+          my_script2.start(%w[exec --verbose --foo])
+        end.strip).to eq("Unknown switches \"--foo\"")
+      end
+
+      it "still accepts options that require a value" do
+        expect(my_script2.start(%w[exec --mode rashly command])).to eq [{"mode" => "rashly"}, %w[command]]
+      end
+
+      it "still passes everything after -- to command" do
+        expect(my_script2.start(%w[exec -- --verbose])).to eq [{}, %w[--verbose]]
+      end
+
+      it "still passes everything after -- to command, complex" do
+        expect(my_script2.start(%w[exec command --mode z again -- --verbose more])).to eq [{}, %w[command --mode z again -- --verbose more]]
+      end
+    end
+  end
+
+  describe "#check_unknown_options!" do
+    my_script = Class.new(Thor) do
+      class_option "verbose",   :type => :boolean
+      class_option "mode",      :type => :string
+      check_unknown_options!
+
+      desc "checked", "a command with checked"
+      def checked(*args)
+        [options, args]
+      end
+
+      def self.exit_on_failure?
+        false
+      end
+    end
+
+    it "still accept options and arguments" do
+      expect(my_script.start(%w[checked command --verbose])).to eq [{"verbose" => true}, %w[command]]
+    end
+
+    it "still accepts options that are given before arguments" do
+      expect(my_script.start(%w[checked --verbose command])).to eq [{"verbose" => true}, %w[command]]
+    end
+
+    it "does not accept if non-option that looks like an option is before the arguments" do
+      expect(capture(:stderr) do
+        my_script.start(%w[checked --foo command --bar])
+      end.strip).to eq("Unknown switches \"--foo\", \"--bar\"")
+    end
+
+    it "does not accept if non-option that looks like an option is after an argument" do
+      expect(capture(:stderr) do
+        my_script.start(%w[checked command --foo --bar])
+      end.strip).to eq("Unknown switches \"--foo\", \"--bar\"")
+    end
+
+    it "does not accept when non-option that looks like an option is after real options" do
+      expect(capture(:stderr) do
+        my_script.start(%w[checked --verbose --foo])
+      end.strip).to eq("Unknown switches \"--foo\"")
+    end
+
+    it "does not accept when non-option that looks like an option is before real options" do
+      expect(capture(:stderr) do
+        my_script.start(%w[checked --foo --verbose])
+      end.strip).to eq("Unknown switches \"--foo\"")
+    end
+
+    it "still accepts options that require a value" do
+      expect(my_script.start(%w[checked --mode rashly command])).to eq [{"mode" => "rashly"}, %w[command]]
+    end
+
+    it "still passes everything after -- to command" do
+      expect(my_script.start(%w[checked -- --verbose])).to eq [{}, %w[--verbose]]
+    end
+
+    it "still passes everything after -- to command, complex" do
+      expect(my_script.start(%w[checked command --mode z again -- --verbose more])).to eq [{"mode" => "z"}, %w[command again --verbose more]]
+    end
   end
 
   describe "#disable_required_check!" do
@@ -173,6 +292,10 @@ describe Thor do
       desc "boring", "An ordinary command"
       def boring(*args)
         [options, args]
+      end
+
+      def self.exit_on_failure?
+        false
       end
     end
 
@@ -329,6 +452,9 @@ Usage: "thor scripts:arities:one_arg ARG"'
 Usage: "thor scripts:arities:two_args ARG1 ARG2"'
       arity_asserter.call %w(optional_arg one two), 'ERROR: "thor optional_arg" was called with arguments ["one", "two"]
 Usage: "thor scripts:arities:optional_arg [ARG]"'
+      arity_asserter.call %w(multiple_usages), 'ERROR: "thor multiple_usages" was called with no arguments
+Usage: "thor scripts:arities:multiple_usages ARG --foo"
+       "thor scripts:arities:multiple_usages ARG --bar"'
     end
 
     it "raises an error if the invoked command does not exist" do
@@ -438,6 +564,19 @@ Options:
 do some fooing
   This is more info!
   Everyone likes more info!
+END
+      end
+
+      it "provides full help info when talking about a specific command with multiple usages" do
+        expect(capture(:stdout) { MyScript.command_help(shell, "baz") }).to eq(<<-END)
+Usage:
+  thor my_script:baz THING
+  thor my_script:baz --all
+
+Options:
+  [--all=ALL]  # Do bazing for all the things
+
+super cool
 END
       end
 
@@ -583,12 +722,30 @@ HELP
       expect(klass.start(%w(unknown foo --bar baz))).to eq(%w(foo))
     end
 
-    it "does not check the default type when check_default_type! is not called" do
+    it "issues a deprecation warning on incompatible types by default" do
       expect do
         Class.new(Thor) do
           option "bar", :type => :numeric, :default => "foo"
         end
-      end.not_to raise_error
+      end.to output(/^Deprecation warning/).to_stderr
+    end
+
+    it "allows incompatible types if allow_incompatible_default_type! is called" do
+      expect do
+        Class.new(Thor) do
+          allow_incompatible_default_type!
+
+          option "bar", :type => :numeric, :default => "foo"
+        end
+      end.not_to output.to_stderr
+    end
+
+    it "allows incompatible types if `check_default_type: false` is given" do
+      expect do
+        Class.new(Thor) do
+          option "bar", :type => :numeric, :default => "foo", :check_default_type => false
+        end
+      end.not_to output.to_stderr
     end
 
     it "checks the default type when check_default_type! is called" do
@@ -605,4 +762,19 @@ HELP
       expect(MyScript.start(%w(send))).to eq(true)
     end
   end
+
+  context "without an exit_on_failure? method" do
+    my_script = Class.new(Thor) do
+      desc "no arg", "do nothing"
+      def no_arg
+      end
+    end
+
+    it "outputs a deprecation warning on error" do
+      expect do
+        my_script.start(%w[no_arg one])
+      end.to output(/^Deprecation.*exit_on_failure/).to_stderr
+    end
+  end
+
 end

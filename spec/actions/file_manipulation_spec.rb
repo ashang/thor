@@ -76,6 +76,14 @@ describe Thor::Actions do
       expect(File.stat(original).mode).to eq(File.stat(copy).mode)
     end
 
+    it "copies file from source to default destination and preserves file mode for templated filenames" do
+      expect(runner).to receive(:filename).and_return("app")
+      action :copy_file, "preserve/%filename%.sh", :mode => :preserve
+      original = File.join(source_root, "preserve/%filename%.sh")
+      copy = File.join(destination_root, "preserve/app.sh")
+      expect(File.stat(original).mode).to eq(File.stat(copy).mode)
+    end
+
     it "logs status" do
       expect(action(:copy_file, "command.thor")).to eq("      create  command.thor\n")
     end
@@ -88,7 +96,7 @@ describe Thor::Actions do
     end
   end
 
-  describe "#link_file" do
+  describe "#link_file", :unless => windows? do
     it "links file from source to default destination" do
       action :link_file, "command.thor"
       exists_and_identical?("command.thor", "command.thor")
@@ -139,7 +147,7 @@ describe Thor::Actions do
 
     it "accepts http remote sources" do
       body = "__start__\nHTTPFILE\n__end__\n"
-      stub_request(:get, "http://example.com/file.txt").to_return(:body => body)
+      stub_request(:get, "http://example.com/file.txt").to_return(:body => body.dup)
       action :get, "http://example.com/file.txt" do |content|
         expect(a_request(:get, "http://example.com/file.txt")).to have_been_made
         expect(content).to eq(body)
@@ -148,7 +156,7 @@ describe Thor::Actions do
 
     it "accepts https remote sources" do
       body = "__start__\nHTTPSFILE\n__end__\n"
-      stub_request(:get, "https://example.com/file.txt").to_return(:body => body)
+      stub_request(:get, "https://example.com/file.txt").to_return(:body => body.dup)
       action :get, "https://example.com/file.txt" do |content|
         expect(a_request(:get, "https://example.com/file.txt")).to have_been_made
         expect(content).to eq(body)
@@ -373,7 +381,7 @@ describe Thor::Actions do
         expect(action(:inject_into_module, "application_helper.rb", ApplicationHelper, "  def help; 'help'; end\n")).to eq("      insert  application_helper.rb\n")
       end
 
-      it "does not append if class name does not match" do
+      it "does not append if module name does not match" do
         action :inject_into_module, "application_helper.rb", "App", "  def help; 'help'; end\n"
         expect(File.binread(file)).to eq("module ApplicationHelper\nend\n")
       end

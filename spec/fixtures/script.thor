@@ -1,6 +1,10 @@
 class MyScript < Thor
   check_unknown_options! :except => :with_optional
 
+  def self.exit_on_failure?
+    false
+  end
+
   attr_accessor :some_attribute
   attr_writer :another_attribute
   attr_reader :another_attribute
@@ -24,7 +28,12 @@ class MyScript < Thor
   desc "animal TYPE", "horse around"
 
   no_commands do
-    def this_is_not_a_command
+    no_commands do
+      def this_is_not_a_command
+      end
+    end
+
+    def neither_is_this
     end
   end
 
@@ -49,6 +58,12 @@ END
   method_option :force, :type => :boolean, :desc => "Force to do some fooing"
   def foo(bar)
     [bar, options]
+  end
+
+  method_option :all, :desc => "Do bazing for all the things"
+  desc ["baz THING", "baz --all"], "super cool"
+  def baz(thing = nil)
+    raise if thing.nil? && !options.include?(:all)
   end
 
   desc "example_default_command", "example!"
@@ -146,6 +161,10 @@ class MyChildScript < MyScript
 end
 
 class Barn < Thor
+  def self.exit_on_failure?
+    false
+  end
+
   desc "open [ITEM]", "open the barn door"
   def open(item = nil)
     if item == "shotgun"
@@ -180,6 +199,10 @@ module Scripts
   class MyDefaults < Thor
     check_unknown_options!
 
+    def self.exit_on_failure?
+      false
+    end
+
     namespace :default
     desc "cow", "prints 'moo'"
     def cow
@@ -200,6 +223,10 @@ module Scripts
   end
 
   class Arities < Thor
+    def self.exit_on_failure?
+      false
+    end
+
     desc "zero_args", "takes zero args"
     def zero_args
     end
@@ -214,6 +241,10 @@ module Scripts
 
     desc "optional_arg [ARG]", "takes an optional arg"
     def optional_arg(arg='default')
+    end
+
+    desc ["multiple_usages ARG --foo", "multiple_usages ARG --bar"], "takes mutually exclusive combinations of args and flags"
+    def multiple_usages(arg)
     end
   end
 end
